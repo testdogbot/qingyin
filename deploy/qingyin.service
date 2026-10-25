@@ -1,0 +1,13 @@
+[Unit]
+Description=Qingyin music site
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/qingyin
+Environment=PORT=8791 HOST=127.0.0.1 DATA_DIR=/var/lib/qingyin
+ExecStart=/usr/bin/node --no-warnings server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
