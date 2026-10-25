@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>清音</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=1">
+</head>
+<body>
+<div id="auth" class="auth hidden">
+  <form class="auth-card" id="authForm">
+    <div class="logo">清<span>音</span></div>
+    <p id="authHint">设置一个访问密码</p>
+    <input type="password" id="authPw" placeholder="密码" autocomplete="current-password" required minlength="6">
+    <button class="btn primary" type="submit" id="authBtn">进入</button>
+    <p class="err" id="authErr"></p>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <aside class="side">
+    <div class="logo">清<span>音</span></div>
+    <nav>
+      <a data-view="discover" class="active">发现</a>
+      <a data-view="search">搜索</a>
+      <a data-view="library">我的曲库</a>
+      <a data-view="playlists">歌单</a>
+      <a data-view="settings">设置</a>
+    </nav>
+  </aside>
+  <main id="main" class="main"></main>
+
+  <footer class="player">
+    <div class="np">
+      <div class="cover" id="pCover"></div>
+      <div class="np-text"><div class="np-title" id="pTitle">还没在播放</div><div class="np-artist" id="pArtist">挑一首喜欢的吧</div></div>
+      <button class="icon like" id="pLike" title="喜欢">♡</button>
+    </div>
+    <div class="ctrl">
+      <div class="btns">
+        <button class="icon" id="pShuffle" title="随机">⤮</button>
+        <button class="icon" id="pPrev" title="上一首">⏮</button>
+        <button class="icon play" id="pPlay" title="播放/暂停">▶</button>
+        <button class="icon" id="pNext" title="下一首">⏭</button>
+        <button class="icon" id="pRepeat" title="循环">↻</button>
+      </div>
+      <div class="bar"><span id="pCur">0:00</span><input type="range" id="pSeek" min="0" max="1000" value="0"><span id="pDur">0:00</span></div>
+    </div>
+    <div class="extra">
+      <span class="badge" id="pQual" title="点击切换音质">—</span>
+      <button class="icon" id="pQueue" title="播放队列">☰</button>
+      <input type="range" id="pVol" min="0" max="100" value="90" title="音量">
+    </div>
+  </footer>
+  <div class="queue hidden" id="queue"><div class="queue-head"><b>播放队列</b><button class="link" id="qClear">清空</button></div><div id="qList"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="auto"></audio>
+<script src="/app.js?v=1" type="module"></script>
+</body>
+</html>
