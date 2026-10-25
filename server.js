@@ -135,8 +135,8 @@ api.get('/jamendo/tracks', wrap(async (req, res) => {
   res.json({ tracks: await jamendoTracks(jamendoKey(), { q: String(q).slice(0, 100), tags: String(tags).slice(0, 60), featured: featured === '1', offset: Number(offset) || 0 }) });
 }));
 api.get('/archive/search', wrap(async (req, res) => {
-  const { q = '', lossless = '1', page = '1' } = req.query;
-  res.json(await archiveSearch({ q: String(q).slice(0, 100), lossless: lossless !== '0', page: Math.max(1, Number(page) || 1) }));
+  const { q = '', lossless = '1', page = '1', zh = '' } = req.query;
+  res.json(await archiveSearch({ q: String(q).slice(0, 100), lossless: lossless !== '0', zh: zh === '1', page: Math.max(1, Number(page) || 1) }));
 }));
 api.get('/archive/album/:id', wrap(async (req, res) => { res.json(await archiveAlbum(req.params.id)); }));
 
