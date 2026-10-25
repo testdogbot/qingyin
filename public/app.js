@@ -133,7 +133,7 @@ async function importTrack(t) {
 }
 
 // ---------------- 视图：发现 ----------------
-const GENRES = [['流行', 'pop'], ['电子', 'electronic'], ['摇滚', 'rock'], ['爵士', 'jazz'], ['古典', 'classical'], ['民谣', 'folk'], ['氛围', 'ambient'], ['Lo-fi', 'lofi'], ['嘻哈', 'hiphop'], ['原声', 'soundtrack']];
+const GENRES = [['华语', 'zh'], ['中国风', 'chinese'], ['流行', 'pop'], ['电子', 'electronic'], ['摇滚', 'rock'], ['爵士', 'jazz'], ['古典', 'classical'], ['民谣', 'folk'], ['氛围', 'ambient'], ['Lo-fi', 'lofi'], ['嘻哈', 'hiphop'], ['原声', 'soundtrack']];
 views.discover = async (tag) => {
   let html = `<h1>发现</h1>`;
   if (status.jamendo) {
@@ -145,8 +145,13 @@ views.discover = async (tag) => {
   } else {
     html += `<div class="panel">填上 Jamendo client_id 后，这里会出现大量可无损播放的独立音乐。<button class="btn sm" onclick="location.hash='settings'">去设置</button></div>`;
   }
-  const ia = await api('/archive/search?lossless=1');
-  html += `<h2>Internet Archive · 无损热门专辑</h2>` + albumCards(ia.albums);
+  if (tag === 'zh') {
+    const ia = await api('/archive/search?zh=1&lossless=0').catch(() => ({ albums: [] }));
+    html += `<h2>华语老唱片 · 上海时代曲与戏曲（Internet Archive）</h2>` + albumCards(ia.albums);
+  } else {
+    const ia = await api('/archive/search?lossless=1').catch(() => ({ albums: [] }));
+    html += `<h2>Internet Archive · 无损热门专辑</h2>` + albumCards(ia.albums);
+  }
   main.innerHTML = html;
   main.querySelectorAll('.chips button').forEach(b => b.onclick = () => go('discover' + (b.dataset.tag ? '/' + b.dataset.tag : '')));
 };
@@ -164,11 +169,11 @@ views.album = async (id) => {
 };
 
 // ---------------- 视图：搜索 ----------------
-let searchSrc = 'jamendo', lastQ = '';
+let searchSrc = 'all', lastQ = '';
 views.search = async (q = lastQ) => {
   lastQ = q;
-  main.innerHTML = `<h1>搜索</h1><form id="sf" class="row" style="margin-bottom:12px"><input type="search" id="sq" placeholder="歌名、歌手、风格…" value="${esc(q)}" style="flex:1"><button class="btn primary">搜索</button></form>
-    <div class="tabs"><button data-s="jamendo">Jamendo 单曲</button><button data-s="archive">Archive 专辑</button><button data-s="local">我的曲库</button></div><div id="sr"></div>`;
+  main.innerHTML = `<h1>搜索</h1><form id="sf" class="row" style="margin-bottom:12px"><input type="search" id="sq" placeholder="歌名、歌手、风格，如：民谣、古筝、周璇…" value="${esc(q)}" style="flex:1"><button class="btn primary">搜索</button></form>
+    <div class="tabs"><button data-s="all">全部</button><button data-s="jamendo">Jamendo 单曲</button><button data-s="archive">Archive 专辑</button><button data-s="local">我的曲库</button></div><div id="sr"></div>`;
   const setTab = () => main.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === searchSrc));
   setTab();
   main.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { searchSrc = b.dataset.s; setTab(); run(); });
@@ -178,7 +183,18 @@ views.search = async (q = lastQ) => {
     if (!q) { box.innerHTML = '<div class="empty">输入关键词开始搜索</div>'; return; }
     box.innerHTML = '<div class="empty">搜索中…</div>';
     try {
-      if (searchSrc === 'jamendo') box.innerHTML = trackRows((await api(`/jamendo/tracks?q=${encodeURIComponent(q)}`)).tracks, 'sj', { empty: '没搜到，换个词或试试 Archive' });
+      if (searchSrc === 'all') {
+        const [j, a, l] = await Promise.all([
+          status.jamendo ? api(`/jamendo/tracks?q=${encodeURIComponent(q)}`).catch(() => ({ tracks: [] })) : { tracks: [] },
+          api(`/archive/search?q=${encodeURIComponent(q)}&lossless=0`).catch(() => ({ albums: [], total: 0 })),
+          api(`/library?q=${encodeURIComponent(q)}`).catch(() => ({ tracks: [] })),
+        ]);
+        let h = '';
+        if (l.tracks.length) h += `<h2>我的曲库</h2>` + trackRows(l.tracks, 'sl');
+        if (j.tracks.length) h += `<h2>单曲 · Jamendo</h2>` + trackRows(j.tracks, 'sj');
+        if (a.albums.length) h += `<h2>专辑 · Internet Archive（${a.total}）</h2>` + albumCards(a.albums);
+        box.innerHTML = h || `<div class="empty">没搜到“${esc(q)}”。这里只收录可合法免费听的音乐，主流华语流行歌（如各大唱片公司的歌手）没有授权，可以试试“华语”“古筝”“民谣”这类风格词，或上传自己的音乐。</div>`;
+      } else if (searchSrc === 'jamendo') box.innerHTML = trackRows((await api(`/jamendo/tracks?q=${encodeURIComponent(q)}`)).tracks, 'sj', { empty: '没搜到，换个词或试试 Archive' });
       else if (searchSrc === 'archive') { const d = await api(`/archive/search?q=${encodeURIComponent(q)}&lossless=0`); box.innerHTML = `<div class="ta" style="margin-bottom:10px">共 ${d.total} 个结果</div>` + albumCards(d.albums); }
       else box.innerHTML = trackRows((await api(`/library?q=${encodeURIComponent(q)}`)).tracks, 'sl');
     } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}${e.code === 'NO_KEY' ? ' <a class="link" href="#settings">去设置</a>' : ''}</div>`; }
