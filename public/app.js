@@ -6,6 +6,20 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const fmtT = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(2) + ' GB' : (b / 1e6).toFixed(1) + ' MB';
 const keyOf = t => `${t.source}:${t.id}`;
+const svg = (d, f) => `<svg viewBox="0 0 24 24"${f ? ' class="f"' : ''}>${d}</svg>`;
+const I = {
+  play: svg('<path d="M7 4.5v15l13-7.5z"/>', 1), pause: svg('<rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/>', 1),
+  prev: svg('<path d="M6 5h2v14H6zM20 5v14L9 12z"/>', 1), next: svg('<path d="M16 5h2v14h-2zM4 5v14l11-7z"/>', 1),
+  shuffle: svg('<path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>'), repeat: svg('<path d="m17 2 4 4-4 4"/><path d="M3 11V10a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'),
+  heart: svg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  more: svg('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+  queue: svg('<path d="M3 6h13M3 12h13M3 18h9"/><path d="m17 15 5 3-5 3z"/>'), x: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  upload: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'), plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  search: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+};
+const playSvg = '<svg viewBox="0 0 24 24" class="f"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const skel = (n = 6) => `<div class="skel">${'<i></i>'.repeat(n)}</div>`;
+const setFill = el => el.style.setProperty('--p', (el.value - el.min) / (el.max - el.min) * 100 + '%');
 
 function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2400); }
 
@@ -44,7 +58,7 @@ function go(hash) {
   const fn = views[view] || views.discover;
   document.querySelectorAll('.side a').forEach(a => a.classList.toggle('active', a.dataset.view === view));
   if (location.hash.slice(1) !== hash) history.pushState(null, '', '#' + hash);
-  main.innerHTML = '<div class="empty">加载中…</div>';
+  main.innerHTML = skel(8);
   main.scrollTop = 0;
   fn(...rest.map(decodeURIComponent)).catch(e => { main.innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
 }
@@ -59,14 +73,14 @@ function trackRows(tracks, listId, opts = {}) {
   if (!tracks.length) return `<div class="empty">${opts.empty || '这里还空着'}</div>`;
   return `<div class="list">${tracks.map((t, i) => `
     <div class="tr ${cur && keyOf(cur) === keyOf(t) ? 'playing' : ''}" data-list="${listId}" data-i="${i}">
-      <span class="n">${i + 1}</span>
+      <span class="n"><b>${i + 1}</b>${playSvg}<span class="eq"><i></i><i></i><i></i></span></span>
       <div class="img" style="background-image:url('${esc(t.cover)}')"></div>
       <div style="min-width:0"><div class="tt">${esc(t.title)}${t.streams?.flac ? '<span class="q">FLAC</span>' : ''}${t.bitDepth ? `<span class="q">${t.bitDepth}bit/${(t.sampleRate / 1000).toFixed(1)}k</span>` : ''}</div>
         <div class="ta">${esc([t.artist, t.album].filter(Boolean).join(' · '))}</div></div>
       <span class="d">${t.duration ? fmtT(t.duration) : ''}</span>
       <div class="acts">
-        <button class="icon like ${liked.has(keyOf(t)) ? 'on' : ''}" data-act="like" title="喜欢">${liked.has(keyOf(t)) ? '♥' : '♡'}</button>
-        <button class="icon" data-act="more" title="更多">⋯</button>
+        <button class="icon like ${liked.has(keyOf(t)) ? 'on' : ''}" data-act="like" title="喜欢">${I.heart}</button>
+        <button class="icon" data-act="more" title="更多">${I.more}</button>
       </div>
     </div>`).join('')}</div>`;
 }
@@ -83,7 +97,7 @@ async function toggleLike(t, btn) {
   const k = keyOf(t);
   if (liked.has(k)) { await api(`/playlists/1/tracks?key=${encodeURIComponent(k)}`, { method: 'DELETE' }); liked.delete(k); }
   else { await api('/playlists/1/tracks', { method: 'POST', body: { track: t } }); liked.add(k); }
-  if (btn) { btn.classList.toggle('on', liked.has(k)); btn.textContent = liked.has(k) ? '♥' : '♡'; }
+  if (btn) btn.classList.toggle('on', liked.has(k));
   if (cur && keyOf(cur) === k) syncLike();
 }
 
@@ -135,10 +149,12 @@ async function importTrack(t) {
 // ---------------- 视图：发现 ----------------
 const GENRES = [['华语', 'zh'], ['中国风', 'chinese'], ['流行', 'pop'], ['电子', 'electronic'], ['摇滚', 'rock'], ['爵士', 'jazz'], ['古典', 'classical'], ['民谣', 'folk'], ['氛围', 'ambient'], ['Lo-fi', 'lofi'], ['嘻哈', 'hiphop'], ['原声', 'soundtrack']];
 views.discover = async (tag) => {
-  let html = `<h1>发现</h1>`;
+  const h = new Date().getHours();
+  const hi = h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+  let html = `<div class="greet"><h1>${hi}</h1><span class="ta">Jamendo 独立音乐 · Internet Archive 无损录音</span></div>`;
   if (status.jamendo) {
-    html += `<div class="chips"><button data-tag="">本周热门</button>${GENRES.map(([n, t]) => `<button data-tag="${t}">${n}</button>`).join('')}</div>`;
-    main.innerHTML = html + '<div class="empty">加载中…</div>';
+    html += `<div class="chips"><button data-tag="" class="${tag ? '' : 'on'}">本周热门</button>${GENRES.map(([n, t]) => `<button data-tag="${t}" class="${tag === t ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    main.innerHTML = html + skel(8);
     html += `<h2>Jamendo · ${tag ? esc(GENRES.find(g => g[1] === tag)?.[0] || tag) : '编辑精选'}</h2>`;
     try { html += trackRows((await api(`/jamendo/tracks?featured=${tag ? '' : '1'}&tags=${encodeURIComponent(tag || '')}`)).tracks, 'disc'); }
     catch (e) { html += `<div class="empty">Jamendo 暂时连不上：${esc(e.message)}</div>`; }
@@ -164,7 +180,7 @@ views.album = async (id) => {
   const a = await api(`/archive/album/${encodeURIComponent(id)}`);
   main.innerHTML = `<div class="hero"><div class="img" style="background-image:url('${esc(a.cover)}')"></div><div>
     <div class="meta">Internet Archive 专辑${a.year ? ' · ' + esc(a.year) : ''} · ${a.tracks.length} 首</div><h1>${esc(a.title)}</h1><div class="meta">${esc(a.artist)}</div>
-    <p>${esc(a.description)}</p><div class="row"><button class="btn primary" id="playAll">▶ 播放全部</button><a class="btn" href="${esc(a.page)}" target="_blank" rel="noopener">来源页面</a></div></div></div>` + trackRows(a.tracks, 'album');
+    <p>${esc(a.description)}</p><div class="row"><button class="btn primary" id="playAll">${I.play}播放全部</button><a class="btn" href="${esc(a.page)}" target="_blank" rel="noopener">来源页面</a></div></div></div>` + trackRows(a.tracks, 'album');
   $('#playAll').onclick = () => playList(a.tracks, 0);
 };
 
@@ -172,7 +188,7 @@ views.album = async (id) => {
 let searchSrc = 'all', lastQ = '';
 views.search = async (q = lastQ) => {
   lastQ = q;
-  main.innerHTML = `<h1>搜索</h1><form id="sf" class="row" style="margin-bottom:12px"><input type="search" id="sq" placeholder="歌名、歌手、风格，如：民谣、古筝、周璇…" value="${esc(q)}" style="flex:1"><button class="btn primary">搜索</button></form>
+  main.innerHTML = `<h1>搜索</h1><form id="sf" class="search-box">${I.search}<input type="search" id="sq" placeholder="歌名、歌手、风格，如：民谣、古筝、周璇…" value="${esc(q)}" autocomplete="off"></form>
     <div class="tabs"><button data-s="all">全部</button><button data-s="jamendo">Jamendo 单曲</button><button data-s="archive">Archive 专辑</button><button data-s="local">我的曲库</button></div><div id="sr"></div>`;
   const setTab = () => main.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === searchSrc));
   setTab();
@@ -180,8 +196,8 @@ views.search = async (q = lastQ) => {
   $('#sf').onsubmit = e => { e.preventDefault(); lastQ = $('#sq').value.trim(); history.replaceState(null, '', '#search/' + encodeURIComponent(lastQ)); run(); };
   async function run() {
     const box = $('#sr'), q = lastQ;
-    if (!q) { box.innerHTML = '<div class="empty">输入关键词开始搜索</div>'; return; }
-    box.innerHTML = '<div class="empty">搜索中…</div>';
+    if (!q) { box.innerHTML = `<div class="empty">试试：<a class="link" href="#search/华语">华语</a>　<a class="link" href="#search/民谣">民谣</a>　<a class="link" href="#search/钢琴">钢琴</a>　<a class="link" href="#search/周璇">周璇</a>　<a class="link" href="#search/Grateful Dead">Grateful Dead</a></div>`; return; }
+    box.innerHTML = skel(6);
     try {
       if (searchSrc === 'all') {
         const [j, a, l] = await Promise.all([
@@ -206,8 +222,8 @@ views.search = async (q = lastQ) => {
 views.library = async () => {
   const { tracks, totalBytes } = await api('/library');
   main.innerHTML = `<h1>我的曲库</h1>
-    <label class="drop" id="drop">把 FLAC / MP3 等音乐文件拖到这里，或<span class="link">点击选择</span>（可多选）<input type="file" id="files" multiple accept=".flac,.mp3,.m4a,.aac,.ogg,.opus,.wav,audio/*" hidden><div id="up"></div></label>
-    <div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="ta">${tracks.length} 首 · ${fmtSize(totalBytes)}</span>${tracks.length ? '<button class="btn sm" id="playLib">▶ 播放全部</button>' : ''}</div>` + trackRows(tracks, 'lib', { empty: '还没有文件，上传几首吧' });
+    <label class="drop" id="drop">${I.upload}把 FLAC / MP3 等音乐文件拖到这里，或 <span class="link">点击选择</span>（可多选）<input type="file" id="files" multiple accept=".flac,.mp3,.m4a,.aac,.ogg,.opus,.wav,audio/*" hidden><div id="up"></div></label>
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="ta">${tracks.length} 首 · ${fmtSize(totalBytes)}</span>${tracks.length ? `<button class="btn primary sm" id="playLib">${I.play}播放全部</button>` : ''}</div>` + trackRows(tracks, 'lib', { empty: '还没有文件，上传几首吧' });
   $('#playLib') && ($('#playLib').onclick = () => playList(tracks, 0));
   const drop = $('#drop');
   drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
@@ -235,7 +251,7 @@ async function upload(files) {
 views.playlists = async (id) => {
   if (id) {
     const p = await api(`/playlists/${id}`);
-    main.innerHTML = `<h1>${esc(p.name)}</h1><div class="row" style="margin-bottom:12px">${p.tracks.length ? '<button class="btn primary" id="pa">▶ 播放全部</button>' : ''}
+    main.innerHTML = `<h1>${esc(p.name)}</h1><div class="row" style="margin-bottom:12px">${p.tracks.length ? `<button class="btn primary" id="pa">${I.play}播放全部</button>` : ''}
       ${p.id !== 1 ? '<button class="btn sm" id="pr">重命名</button><button class="btn sm" id="pd">删除歌单</button>' : ''}</div>` + trackRows(p.tracks, 'pl' + p.id);
     $('#pa') && ($('#pa').onclick = () => playList(p.tracks, 0));
     $('#pr') && ($('#pr').onclick = async () => { const n = prompt('新名字', p.name); if (n) { await api(`/playlists/${id}`, { method: 'PATCH', body: { name: n } }); go('playlists/' + id); } });
@@ -243,8 +259,8 @@ views.playlists = async (id) => {
     return;
   }
   const { playlists } = await api('/playlists');
-  main.innerHTML = `<h1>歌单</h1><div class="row" style="margin-bottom:14px"><button class="btn" id="np">＋ 新建歌单</button></div>
-    <div class="grid">${playlists.map(p => `<div class="card" onclick="location.hash='playlists/${p.id}'"><div class="img" style="background:linear-gradient(135deg,${p.id === 1 ? '#ff6b8b,#7a2a4a' : '#2b5876,#4e4376'});display:grid;place-items:center;font-size:42px">${p.id === 1 ? '♥' : '♪'}</div><div class="t">${esc(p.name)}</div><div class="s">${p.count} 首</div></div>`).join('')}</div>`;
+  main.innerHTML = `<h1>歌单</h1><div class="row" style="margin-bottom:14px"><button class="btn" id="np">${I.plus}新建歌单</button></div>
+    <div class="grid">${playlists.map(p => `<div class="card" onclick="location.hash='playlists/${p.id}'"><div class="img glyph" style="background:linear-gradient(135deg,${p.id === 1 ? '#ff6b8b,#7a2a4a' : ['#2b5876,#4e4376', '#134e5e,#71b280', '#614385,#516395', '#c06c84,#355c7d'][p.id % 4]});display:grid;place-items:center;font-size:44px;color:rgba(255,255,255,.85)">${p.id === 1 ? '♥' : '♪'}</div><div class="t">${esc(p.name)}</div><div class="s">${p.count} 首</div></div>`).join('')}</div>`;
   $('#np').onclick = async () => { const name = prompt('歌单名'); if (name) { await api('/playlists', { method: 'POST', body: { name } }); go('playlists'); } };
 };
 
@@ -285,6 +301,7 @@ function load(autoplay, prefer = pref) {
   if (autoplay) audio.play().catch(() => {});
   $('#pTitle').textContent = cur.title; $('#pArtist').textContent = [cur.artist, cur.album].filter(Boolean).join(' · ');
   $('#pCover').style.backgroundImage = cur.cover ? `url('${cur.cover}')` : '';
+  const amb = $('#amb'); amb.classList.toggle('img', !!cur.cover); amb.style.backgroundImage = cur.cover ? `url('${cur.cover}')` : '';
   const qb = $('#pQual'); qb.textContent = q === 'flac' ? (cur.bitDepth ? `FLAC ${cur.bitDepth}bit` : 'FLAC 无损') : 'MP3'; qb.classList.toggle('hi', q === 'flac');
   document.title = `${cur.title} · 清音`;
   syncLike(); markPlaying();
@@ -293,7 +310,7 @@ function load(autoplay, prefer = pref) {
   }
 }
 function markPlaying() { document.querySelectorAll('.tr[data-list]').forEach(r => { const t = lists[r.dataset.list]?.[r.dataset.i]; r.classList.toggle('playing', !!(t && cur && keyOf(t) === keyOf(cur))); }); renderQueue(); }
-function syncLike() { const on = cur && liked.has(keyOf(cur)); $('#pLike').classList.toggle('on', !!on); $('#pLike').textContent = on ? '♥' : '♡'; }
+function syncLike() { const on = cur && liked.has(keyOf(cur)); $('#pLike').classList.toggle('on', !!on); }
 function next(manual = true) {
   if (!queue.length) return;
   if (!manual && repeat === 'one') { audio.currentTime = 0; audio.play(); return; }
@@ -306,8 +323,8 @@ function next(manual = true) {
 function prev() { if (audio.currentTime > 4) { audio.currentTime = 0; return; } if (!queue.length) return; qi = (qi - 1 + queue.length) % queue.length; load(true); }
 function toggle() { if (!cur) return; audio.paused ? audio.play() : audio.pause(); }
 
-audio.onplay = () => { $('#pPlay').textContent = '❚❚'; };
-audio.onpause = () => { $('#pPlay').textContent = '▶'; };
+audio.onplay = () => { $('#pPlay').innerHTML = I.pause; document.body.classList.remove('paused'); };
+audio.onpause = () => { $('#pPlay').innerHTML = I.play; document.body.classList.add('paused'); };
 audio.onended = () => next(false);
 audio.onerror = () => {
   if (!cur) return;
@@ -319,12 +336,12 @@ audio.ontimeupdate = () => {
   if (seeking) return;
   const d = audio.duration || cur?.duration || 0;
   $('#pCur').textContent = fmtT(audio.currentTime); $('#pDur').textContent = fmtT(d);
-  $('#pSeek').value = d ? audio.currentTime / d * 1000 : 0;
+  $('#pSeek').value = d ? audio.currentTime / d * 1000 : 0; setFill($('#pSeek'));
 };
-$('#pSeek').oninput = () => { seeking = true; const d = audio.duration || 0; $('#pCur').textContent = fmtT($('#pSeek').value / 1000 * d); };
+$('#pSeek').oninput = () => { seeking = true; setFill($('#pSeek')); const d = audio.duration || 0; $('#pCur').textContent = fmtT($('#pSeek').value / 1000 * d); };
 $('#pSeek').onchange = () => { const d = audio.duration || 0; if (d) audio.currentTime = $('#pSeek').value / 1000 * d; seeking = false; };
 $('#pPlay').onclick = toggle; $('#pNext').onclick = () => next(); $('#pPrev').onclick = prev;
-$('#pVol').oninput = e => { audio.volume = e.target.value / 100; localStorage.qyVol = audio.volume; };
+$('#pVol').oninput = e => { setFill(e.target); audio.volume = e.target.value / 100; localStorage.qyVol = audio.volume; };
 $('#pLike').onclick = () => cur && toggleLike(cur).then(() => markPlaying());
 $('#pQual').onclick = () => {
   if (!cur) return;
@@ -332,14 +349,20 @@ $('#pQual').onclick = () => {
   if (!cur.streams?.[want]) return toast(want === 'flac' ? '这首没有无损音源' : '这首只有无损音源');
   const t = audio.currentTime, playing = !audio.paused; load(playing, want); audio.currentTime = t;
 };
-const syncModes = () => { $('#pShuffle').classList.toggle('on', shuffle); $('#pRepeat').classList.toggle('on', repeat !== 'off'); $('#pRepeat').textContent = repeat === 'one' ? '↻¹' : '↻'; };
+const syncModes = () => { $('#pShuffle').classList.toggle('on', shuffle); $('#pRepeat').classList.toggle('on', repeat !== 'off'); $('#pRepeat').classList.toggle('one', repeat === 'one'); };
 $('#pShuffle').onclick = () => { shuffle = !shuffle; localStorage.qyShuffle = shuffle ? '1' : '0'; syncModes(); };
 $('#pRepeat').onclick = () => { repeat = { all: 'one', one: 'off', off: 'all' }[repeat]; localStorage.qyRepeat = repeat; syncModes(); toast({ all: '列表循环', one: '单曲循环', off: '不循环' }[repeat]); };
 syncModes();
+// 播放栏图标
+$('#pPlay').innerHTML = I.play; $('#pPrev').innerHTML = I.prev; $('#pNext').innerHTML = I.next;
+$('#pShuffle').innerHTML = I.shuffle; $('#pRepeat').innerHTML = I.repeat; $('#pLike').innerHTML = I.heart; $('#pQueue').innerHTML = I.queue;
+document.body.classList.add('paused'); setFill($('#pVol')); setFill($('#pSeek'));
+// 手机上点正在播放的歌名打开队列
+$('.np-text').onclick = () => { if (matchMedia('(max-width:760px)').matches) $('#queue').classList.toggle('hidden'); };
 $('#pQueue').onclick = () => $('#queue').classList.toggle('hidden');
 $('#qClear').onclick = () => { queue = cur ? [cur] : []; qi = cur ? 0 : -1; renderQueue(); };
 function renderQueue() {
-  $('#qList').innerHTML = queue.length ? queue.map((t, i) => `<div class="tr ${i === qi ? 'playing' : ''}" data-q="${i}"><div style="min-width:0"><div class="tt">${esc(t.title)}</div><div class="ta">${esc(t.artist)}</div></div><button class="icon" data-rm="${i}">✕</button></div>`).join('') : '<div class="empty">队列是空的</div>';
+  $('#qList').innerHTML = queue.length ? queue.map((t, i) => `<div class="tr ${i === qi ? 'playing' : ''}" data-q="${i}"><div style="min-width:0"><div class="tt">${esc(t.title)}</div><div class="ta">${esc(t.artist)}</div></div><button class="icon" data-rm="${i}">${I.x}</button></div>`).join('') : '<div class="empty">队列是空的</div>';
 }
 $('#qList').onclick = e => {
   const rm = e.target.closest('[data-rm]');
