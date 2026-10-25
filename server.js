@@ -73,7 +73,7 @@ export const app = express();
 app.set('trust proxy', 'loopback');
 app.disable('x-powered-by');
 app.use((req, res, next) => { res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer'); next(); });
-app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '1h' }));
+app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '1h', setHeaders: (res, f) => { if (f.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
 
 const api = express.Router();
 api.use(express.json({ limit: '200kb' }));
